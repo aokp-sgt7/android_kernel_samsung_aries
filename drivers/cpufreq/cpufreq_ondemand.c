@@ -62,6 +62,7 @@ static unsigned int min_sampling_rate;
 static unsigned int orig_sampling_rate;
 static unsigned int orig_sampling_down_factor;
 static unsigned int orig_sampling_down_max_mom;
+static unsigned int orig_io_is_busy;
 
 #define LATENCY_MULTIPLIER			(1000)
 #define MIN_LATENCY_MULTIPLIER			(100)
@@ -307,6 +308,7 @@ static ssize_t store_io_is_busy(struct kobject *a, struct attribute *b,
 	if (ret != 1)
 		return -EINVAL;
 	dbs_tuners_ins.io_is_busy = !!input;
+	orig_io_is_busy = dbs_tuners_ins.io_is_busy;
 	return count;
 }
 
@@ -568,7 +570,9 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 		j_dbs_info = &per_cpu(od_cpu_dbs_info, j);
 
 		cur_idle_time = get_cpu_idle_time(j, &cur_wall_time);
-		cur_iowait_time = get_cpu_iowait_time(j, &cur_wall_time);
+
+        if (dbs_tuners_ins.io_is_busy)
+		    cur_iowait_time = get_cpu_iowait_time(j, &cur_wall_time);
 
 		wall_time = (unsigned int) cputime64_sub(cur_wall_time,
 				j_dbs_info->prev_cpu_wall);
@@ -578,9 +582,11 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 				j_dbs_info->prev_cpu_idle);
 		j_dbs_info->prev_cpu_idle = cur_idle_time;
 
-		iowait_time = (unsigned int) cputime64_sub(cur_iowait_time,
+        if (dbs_tuners_ins.io_is_busy) {
+		    iowait_time = (unsigned int) cputime64_sub(cur_iowait_time,
 				j_dbs_info->prev_cpu_iowait);
-		j_dbs_info->prev_cpu_iowait = cur_iowait_time;
+		    j_dbs_info->prev_cpu_iowait = cur_iowait_time;
+		}
 
 		if (dbs_tuners_ins.ignore_nice) {
 			cputime64_t cur_nice;
@@ -772,7 +778,7 @@ static int should_io_be_busy(void)
 	    boot_cpu_data.x86_model >= 15)
 		return 1;
 #endif
-	return 1;
+	return 0;
 }
 
 static void powersave_early_suspend(struct early_suspend *handler)
@@ -784,7 +790,7 @@ static void powersave_early_suspend(struct early_suspend *handler)
 
 static void powersave_late_resume(struct early_suspend *handler)
 {
-	dbs_tuners_ins.io_is_busy = 1;
+	dbs_tuners_ins.io_is_busy = orig_io_is_busy;
 	dbs_tuners_ins.sampling_down_max_mom = orig_sampling_down_max_mom;
 	dbs_tuners_ins.sampling_rate = orig_sampling_rate;
 }
@@ -857,6 +863,7 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
             orig_sampling_down_factor = dbs_tuners_ins.sampling_down_factor;
             orig_sampling_down_max_mom = dbs_tuners_ins.sampling_down_max_mom;
 			dbs_tuners_ins.io_is_busy = should_io_be_busy();
+			orig_io_is_busy = dbs_tuners_ins.io_is_busy;
 		}
 		mutex_unlock(&dbs_mutex);
 
