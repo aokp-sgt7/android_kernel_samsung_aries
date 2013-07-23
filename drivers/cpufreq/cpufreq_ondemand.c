@@ -282,7 +282,6 @@ show_one(sampling_down_momentum_sensitivity, sampling_down_mom_sens);
 show_one(ignore_nice_load, ignore_nice);
 show_one(powersave_bias, powersave_bias);
 show_one(boostpulse, boosted);
-show_one(boosttime, freq_boost_time);
 show_one(boostfreq, boostfreq);
 
 static ssize_t store_sampling_rate(struct kobject *a, struct attribute *b,
