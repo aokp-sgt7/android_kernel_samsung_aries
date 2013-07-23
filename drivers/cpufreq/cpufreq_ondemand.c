@@ -43,6 +43,7 @@
 #define MAX_FREQUENCY_UP_THRESHOLD		(100)
 #define DEFAULT_FREQ_BOOST_TIME			(500000)
 #define MAX_FREQ_BOOST_TIME				(5000000)
+#define DEF_SMOOTH_UI (0)
 
 u64 freq_boosted_time;
 
@@ -63,6 +64,8 @@ static unsigned int orig_sampling_rate;
 static unsigned int orig_sampling_down_factor;
 static unsigned int orig_sampling_down_max_mom;
 static unsigned int orig_io_is_busy;
+
+extern unsigned int touch_state_val;
 
 #define LATENCY_MULTIPLIER			(1000)
 #define MIN_LATENCY_MULTIPLIER			(100)
@@ -126,6 +129,7 @@ static struct dbs_tuners {
     unsigned int sampling_down_max_mom;
     unsigned int sampling_down_mom_sens;
 	unsigned int powersave_bias;
+    unsigned int smooth_ui;
 	unsigned int io_is_busy;
 	unsigned int boosted;
 	unsigned int freq_boost_time;
@@ -141,6 +145,7 @@ static struct dbs_tuners {
 	.powersave_bias = 0,
 	.freq_boost_time = DEFAULT_FREQ_BOOST_TIME,
 	.boostfreq = 0,
+	.smooth_ui = DEF_SMOOTH_UI,
 };
 
 static inline cputime64_t get_cpu_idle_time_jiffy(unsigned int cpu,
@@ -281,6 +286,7 @@ show_one(sampling_down_max_momentum, sampling_down_max_mom);
 show_one(sampling_down_momentum_sensitivity, sampling_down_mom_sens);
 show_one(ignore_nice_load, ignore_nice);
 show_one(powersave_bias, powersave_bias);
+show_one(smooth_ui, smooth_ui);
 show_one(boostpulse, boosted);
 show_one(boostfreq, boostfreq);
 
@@ -446,6 +452,20 @@ static ssize_t store_powersave_bias(struct kobject *a, struct attribute *b,
 	return count;
 }
 
+static ssize_t store_smooth_ui(struct kobject *a, struct attribute *b,
+           const char *buf, size_t count)
+{
+    unsigned int input;
+    int ret;
+
+    ret = sscanf(buf, "%u", &input);
+    if (ret != 1)
+        return -EINVAL;
+    dbs_tuners_ins.smooth_ui = !!input;
+    return count;
+}
+
+
 
 static ssize_t store_boostpulse(struct kobject *kobj, struct attribute *attr,
 				const char *buf, size_t count)
@@ -487,6 +507,7 @@ define_one_global_rw(sampling_down_max_momentum);
 define_one_global_rw(sampling_down_momentum_sensitivity);
 define_one_global_rw(ignore_nice_load);
 define_one_global_rw(powersave_bias);
+define_one_global_rw(smooth_ui);
 define_one_global_rw(boostpulse);
 define_one_global_rw(boostfreq);
 
@@ -499,6 +520,7 @@ static struct attribute *dbs_attributes[] = {
     &sampling_down_momentum_sensitivity.attr,
 	&ignore_nice_load.attr,
 	&powersave_bias.attr,
+	&smooth_ui.attr,
 	&io_is_busy.attr,
 	&boostpulse.attr,
 	&boostfreq.attr,
@@ -629,7 +651,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	}
 
 	/* Check for frequency increase */
-	if (max_load_freq > dbs_tuners_ins.up_threshold * policy->cur) {
+	if ((dbs_tuners_ins.smooth_ui && touch_state_val) || max_load_freq > dbs_tuners_ins.up_threshold * policy->cur) {
 		/* If switching to max speed, apply sampling_down_factor */
 		if (policy->cur < policy->max)
 			this_dbs_info->rate_mult =
@@ -639,7 +661,10 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 		/* Calculate momentum and update sampling down factor */
 
 		if (this_dbs_info->momentum_adder < dbs_tuners_ins.sampling_down_mom_sens) {
-			this_dbs_info->momentum_adder++;
+            if (dbs_tuners_ins.smooth_ui && touch_state_val)
+                this_dbs_info->momentum_adder = dbs_tuners_ins.sampling_down_mom_sens;
+            else
+			    this_dbs_info->momentum_adder++;
 			dbs_tuners_ins.sampling_down_momentum = (this_dbs_info->momentum_adder * dbs_tuners_ins.sampling_down_max_mom)
 							  / dbs_tuners_ins.sampling_down_mom_sens;
 			dbs_tuners_ins.sampling_down_factor = orig_sampling_down_factor + dbs_tuners_ins.sampling_down_momentum;

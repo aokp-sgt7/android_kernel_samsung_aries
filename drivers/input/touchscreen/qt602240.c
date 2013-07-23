@@ -19,6 +19,11 @@
 *
 *
 * *****************************************************************************/
+
+// Accidental touch key prevention (see cypress-touchkey.c)
+unsigned int touch_state_val = 0;
+EXPORT_SYMBOL(touch_state_val);
+
 //General Object
 static gen_powerconfig_t7_config_t power_config = {0};                 //Power config settings.
 static gen_acquisitionconfig_t8_config_t acquisition_config = {0};     // Acquisition config.
@@ -1132,8 +1137,10 @@ static void qt602240_input_read(struct qt602240_data *data)
 			s5pv210_unlock_dvfs_high_level(DVFS_LOCK_TOKEN_7);
 			fingerInfo[id].pressure= 0;
 			bChangeUpDn= 1;
+			touch_state_val = 0;
 		} else if ((touch_status & 0xf0 ) == 0xc0) {                                  // Detect & Press  : 0x80 | 0x40
 			touch_message_flag = true;
+			touch_state_val = 1;
 			switch( cpufreq_lock ) {
 				case 0:
 					s5pv210_lock_dvfs_high_level(DVFS_LOCK_TOKEN_7, L2); // 400MHz
@@ -1155,6 +1162,7 @@ static void qt602240_input_read(struct qt602240_data *data)
 		} else if ((touch_status & 0xf0 ) == 0x90 ) {	                      // Detect & Move : 0x80 | 0x10
 			fingerInfo[id].x= (int16_t)x;
 			fingerInfo[id].y= (int16_t)y;
+			touch_state_val = 1;
 		}
 		else
 			printk(KERN_DEBUG "[TSP] Unknown state(%x)! \n", touch_status);
