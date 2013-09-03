@@ -547,7 +547,9 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 
 #ifdef CONFIG_BCMDHD_WIFI_PM
     if (wifi_pm == 1) {
+#if !defined(SUPPORT_PM2_ONLY)
         power_mode = PM_FAST;
+#endif
         DHD_ERROR(("%s: PM_FAST\n", __FUNCTION__));
     } else
         DHD_ERROR(("%s: PM_MAX \n", __FUNCTION__));
