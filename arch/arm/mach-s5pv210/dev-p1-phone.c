@@ -20,8 +20,13 @@
 #include <mach/gpio.h>
 #include <mach/gpio-p1.h>
 
+#if defined(CONFIG_PHONE_P1_CDMA)
+#include "../../../drivers/misc/dpram/onedram.h"
+#include "../../../drivers/misc/dpram/modemctl.h"
+#else
 #include "../../../drivers/misc/samsung_modemctl/onedram/onedram.h"
 #include "../../../drivers/misc/samsung_modemctl/modemctl/modemctl.h"
+#endif
 
 /* onedram */
 static void onedram_cfg_gpio(void)
@@ -73,7 +78,7 @@ static struct modemctl_platform_data mdmctl_data = {
 	.gpio_pda_active = GPIO_PDA_ACTIVE,
 	.gpio_cp_reset = GPIO_CP_RST,
 #if defined(CONFIG_PHONE_P1_CDMA)
-	.gpio_reset_req_n = NULL,
+//	.gpio_reset_req_n = NULL,
 	.gpio_sim_ndetect = NULL,
 #elif defined(CONFIG_PHONE_P1_GSM)
 	.gpio_reset_req_n = GPIO_RESET_REQ_N,
@@ -134,18 +139,16 @@ static void modemctl_cfg_gpio(void)
 		s3c_gpio_setpull(gpio_pda_active, S3C_GPIO_PULL_NONE);
 	}
 
+#if defined(CONFIG_PHONE_P1_GSM)
 	if (mdmctl_data.gpio_reset_req_n) {
 		err = gpio_request(mdmctl_data.gpio_reset_req_n, "RST_REQN");
 		if (err) {
 			printk("fail to request gpio %s\n","RST_REQN");
-#if defined(CONFIG_PHONE_P1_GSM)
 		} else {
 			gpio_direction_output(mdmctl_data.gpio_reset_req_n, GPIO_LEVEL_LOW);
-        }
-#elif defined(CONFIG_PHONE_P1_CDMA)
-        }
-#endif
+	        }
 	}
+#endif
 
 	s3c_gpio_cfgpin(gpio_phone_active, S3C_GPIO_SFN(0xF));
 	s3c_gpio_setpull(gpio_phone_active, S3C_GPIO_PULL_NONE);
