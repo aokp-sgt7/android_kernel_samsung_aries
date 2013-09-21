@@ -21,8 +21,8 @@
 #include <mach/gpio-p1.h>
 
 #if defined(CONFIG_PHONE_P1_CDMA)
-#include "../../../drivers/misc/dpram/onedram.h"
-#include "../../../drivers/misc/dpram/modemctl.h"
+#include "../../../drivers/misc/samsung_modemctl/dpram/onedram.h"
+#include "../../../drivers/misc/samsung_modemctl/dpram/modemctl.h"
 #else
 #include "../../../drivers/misc/samsung_modemctl/onedram/onedram.h"
 #include "../../../drivers/misc/samsung_modemctl/modemctl/modemctl.h"
@@ -149,10 +149,6 @@ static void modemctl_cfg_gpio(void)
 	        }
 	}
 #endif
-
-	s3c_gpio_cfgpin(gpio_phone_active, S3C_GPIO_SFN(0xF));
-	s3c_gpio_setpull(gpio_phone_active, S3C_GPIO_PULL_NONE);
-	irq_set_irq_type(gpio_phone_active, IRQ_TYPE_EDGE_BOTH);
 
 #if defined(CONFIG_PHONE_P1_CDMA)
 	if (mdmctl_data.gpio_sim_ndetect) {
